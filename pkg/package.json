@@ -1,0 +1,15 @@
+{
+  "name": "stranger-gen",
+  "collaborators": [
+    "K Sadov <ksadov@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "stranger_gen_bg.wasm",
+    "stranger_gen.js",
+    "stranger_gen.d.ts"
+  ],
+  "module": "stranger_gen.js",
+  "types": "stranger_gen.d.ts",
+  "sideEffects": false
+}

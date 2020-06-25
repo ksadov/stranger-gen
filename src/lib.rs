@@ -34,10 +34,13 @@ const EYE_END_MAX: usize = STRANGER_START + 100;
 
 const MIN_EYE_WIDTH: usize = 0;
 
-const LEG_WIDTH: usize = 3;
+const MIN_LEG_WIDTH: usize = 3;
+const MAX_LEG_WIDTH: usize = 8;
+    
 const EYE_LEG_DISTANCE: usize = 30;
-const NEAR_FAR_LEG_DISTANCE: usize = 5;
-const FORE_HIND_LEG_DISTANCE: usize = 150;
+const NEAR_FAR_LEG_DISTANCE_RATIO: usize = 2;
+const MIN_FORE_HIND_LEG_DISTANCE: usize = 100;
+const MAX_FORE_HIND_LEG_DISTANCE: usize = 180;
 
 const FAR_FOOT_HEIGHT: usize = HEIGHT - 30;
 const NEAR_FOOT_HEIGHT: usize = HEIGHT - 25;
@@ -68,6 +71,8 @@ struct StrangerParams {
     eye_start_x: usize,
     eye_end_x: usize,
     iris_radius: usize,
+    leg_width: usize,
+    fore_hind_dist: usize
 /*
     cap: Option<usize>,
     socks: Option<usize>,
@@ -113,26 +118,26 @@ pub fn render_stranger() ->  *const u8 {
     &mut canvas.flood_fill(sp.core_anchors[2].0, sp.core_anchors[2].1, test_fill);
 
     let leg_start_x = sp.eye_end_x + EYE_LEG_DISTANCE;
-    &mut canvas.draw_leg(leg_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill, DrawMode::LayerUnder);
+    &mut canvas.draw_leg(leg_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill,
+			 sp.leg_width, DrawMode::LayerUnder);
 
     
-    let leg2_start_x = leg_start_x + NEAR_FAR_LEG_DISTANCE;
-    &mut canvas.draw_leg(leg2_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill, DrawMode::LayerOver);
+    let leg2_start_x = leg_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
+    &mut canvas.draw_leg(leg2_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill,
+			 sp.leg_width, DrawMode::LayerOver);
 
-    let leg3_start_x = leg_start_x + FORE_HIND_LEG_DISTANCE;
-    &mut canvas.draw_leg(leg3_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill, DrawMode::LayerUnder);
+    let leg3_start_x = leg_start_x + sp.fore_hind_dist;
+    &mut canvas.draw_leg(leg3_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill,
+			 sp.leg_width, DrawMode::LayerUnder);
     
-    let leg4_start_x = leg3_start_x + NEAR_FAR_LEG_DISTANCE;
-    &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill, DrawMode::LayerOver);
+    let leg4_start_x = leg3_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
+    &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill,
+			 sp.leg_width, DrawMode::LayerOver);
 
     let eye_mid_y = y_at_x(&core, eye_mid_x);
     &mut canvas.draw_iris((eye_mid_x, eye_mid_y), sp.iris_radius, BLACK);
     
     canvas.raw_pixels()
-}
-
-fn mid_y(s1: &Vec<(usize, usize)>, s2: &Vec<(usize, usize)>, x : usize) -> usize {
-    (y_at_x(s1, x) + y_at_x(s2, x) * 3) / 4
 }
 
 fn make_spline(upoints: [(usize, usize); 4]) -> Vec<(usize, usize)> {
@@ -190,6 +195,11 @@ impl StrangerParams {
 	let eye_end_x = rng.gen_range(EYE_END_MIN, EYE_END_MAX);
 
 	let iris_radius = rng.gen_range(MIN_IRIS_RADIUS, MAX_IRIS_RADIUS);
+
+	let leg_width = rng.gen_range(MIN_LEG_WIDTH, MAX_LEG_WIDTH);
+
+	let fore_hind_dist = rng.gen_range(MIN_FORE_HIND_LEG_DISTANCE,
+					   MAX_FORE_HIND_LEG_DISTANCE);
 	StrangerParams {
 	    core_anchors: core_anchors,	    
 	    dorsal_anchors: dorsal_anchors,
@@ -197,7 +207,9 @@ impl StrangerParams {
 	    color: color,
 	    eye_start_x: eye_start_x,
 	    eye_end_x: eye_end_x,
-	    iris_radius: iris_radius,		
+	    iris_radius: iris_radius,
+	    leg_width: leg_width,
+	    fore_hind_dist: fore_hind_dist
 	 }	
     }
 }
@@ -247,29 +259,21 @@ impl Canvas {
 	}
     }
 
-/*
-    fn draw_spline(&mut self, spline: &Vec<(isize, isize)>) {
-	for i in 0..spline.len()-1 {
-	    for (x, y) in Bresenham::new(spline[i], spline[i+1]) {
-		self.pixels[y as usize][x as usize] = BLACK;
-	    }
-	}	    
-    }
-*/
-
     fn draw_leg(&mut self,
 		leg_start_x: usize,
 		dorsal: &Vec<(usize, usize)>,
 		foot: usize,
 		color: (u8, u8, u8, u8),
-		  dm: DrawMode) {
+		leg_width: usize,
+		dm: DrawMode) {
 	let leg_start_y = y_at_x(dorsal, leg_start_x);
-	let leg_end_x = leg_start_x + LEG_WIDTH;
+	let leg_end_x = leg_start_x + leg_width;
 	let leg_end_y = y_at_x(dorsal, leg_end_x);
 	self.draw_vertical_line(leg_start_x, leg_start_y, foot, BLACK, dm);
 	self.draw_vertical_line(leg_end_x, leg_end_y, foot, BLACK, dm);
 	self.draw_horizontal_line(foot + 1, leg_start_x + 1, leg_end_x - 1, BLACK, dm);
-	self.fill_rect((leg_start_x + 1, leg_start_y - 1), (leg_end_x - 1, foot), color, dm);
+	let max_anchor = min (leg_start_y, leg_end_y);
+	self.fill_rect((leg_start_x + 1, max_anchor - 1), (leg_end_x - 1, foot), color, dm);
     }
     
     fn draw_vertical_line(&mut self, x: usize, start_y: usize, end_y: usize,

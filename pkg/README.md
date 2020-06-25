@@ -1,0 +1,1 @@
+An image generator based on Felix Kramer's [The Stranger Modules.](https://strangers.atrocityland.com/)

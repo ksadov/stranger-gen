@@ -52,12 +52,7 @@ type Color = (u8, u8, u8, u8);
 
 const BLACK: Color = (0, 0, 0, 255);
 
-#[derive(Copy, Clone)]
-enum DrawMode {
-    LayerOver,
-    LayerUnder,
-    PreserveAlpha
-}
+type DrawMode = fn(usize, usize, Color) -> bool;
 
 struct Canvas {
     pixels: [[Color; WIDTH]; HEIGHT]
@@ -79,6 +74,14 @@ struct StrangerParams {
     stripes: Option<usize>,
     tears: Option<usize>
 */
+}
+
+fn layer_over(x: usize, y: usize, c: Color) -> bool {
+    true
+}
+
+fn layer_under(x: usize, y: usize, c: Color) -> bool {
+    c.3 < 255
 }
 
 #[wasm_bindgen]  
@@ -119,20 +122,20 @@ pub fn render_stranger() ->  *const u8 {
 
     let leg_start_x = sp.eye_end_x + EYE_LEG_DISTANCE;
     &mut canvas.draw_leg(leg_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill,
-			 sp.leg_width, DrawMode::LayerUnder);
+			 sp.leg_width, &(layer_under as DrawMode));
 
     
     let leg2_start_x = leg_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
     &mut canvas.draw_leg(leg2_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill,
-			 sp.leg_width, DrawMode::LayerOver);
+			 sp.leg_width, &(layer_over as DrawMode));
 
     let leg3_start_x = leg_start_x + sp.fore_hind_dist;
     &mut canvas.draw_leg(leg3_start_x, &dorsal, FAR_FOOT_HEIGHT, test_fill,
-			 sp.leg_width, DrawMode::LayerUnder);
+			 sp.leg_width, &(layer_under as DrawMode));
     
     let leg4_start_x = leg3_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
     &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, test_fill,
-			 sp.leg_width, DrawMode::LayerOver);
+			 sp.leg_width, &(layer_over as DrawMode));
 
     let eye_mid_y = y_at_x(&core, eye_mid_x);
     &mut canvas.draw_iris((eye_mid_x, eye_mid_y), sp.iris_radius, BLACK);
@@ -238,18 +241,9 @@ impl Canvas {
 	&self.pixels[0][0].0 as *const u8
     }
 
-    fn mark_pixel(&mut self, x: usize, y: usize, color: Color, dm: DrawMode) {
-	match dm {
-	    DrawMode::LayerOver => { self.pixels[y][x] = color; }
-	    DrawMode::LayerUnder => {
-		if self.pixels[y][x].3 < 255 {
-		    self.pixels[y][x] = color; }
-	    }
-	    DrawMode::PreserveAlpha => {
-		if self.pixels[y][x].3 == 255 {
-		    self.pixels[y][x] = color;
-		}
-	    }
+    fn mark_pixel(&mut self, x: usize, y: usize, color: Color, dm: &DrawMode) {
+	if dm(x, y, self.pixels[y][x]) {
+	    self.pixels[y][x] = color;
 	}	
     }
 
@@ -265,7 +259,7 @@ impl Canvas {
 		foot: usize,
 		color: (u8, u8, u8, u8),
 		leg_width: usize,
-		dm: DrawMode) {
+		dm: &DrawMode) {
 	let leg_start_y = y_at_x(dorsal, leg_start_x);
 	let leg_end_x = leg_start_x + leg_width;
 	let leg_end_y = y_at_x(dorsal, leg_end_x);
@@ -277,7 +271,7 @@ impl Canvas {
     }
     
     fn draw_vertical_line(&mut self, x: usize, start_y: usize, end_y: usize,
-			  color: Color, dm: DrawMode) {
+			  color: Color, dm: &DrawMode) {
 	for y in start_y..(end_y + 1) {
 	    self.mark_pixel(x, y, color, dm);
 	}
@@ -288,7 +282,7 @@ impl Canvas {
 			    start_x: usize,
 			    end_x: usize,
 			    color: Color,
-			    dm: DrawMode) {
+			    dm: &DrawMode) {
 	for x in start_x..(end_x + 1) {
 	    self.mark_pixel(x, y, color, dm);
 	}
@@ -298,7 +292,6 @@ impl Canvas {
 	x < STRANGER_END && y < HEIGHT
 	    && x > STRANGER_START && y > 0
 	    && self.pixels[y][x] == start_color
-	    && self.pixels[y][x] != BLACK
     }
     
     fn flood_fill(&mut self, x0: usize, y0: usize, color: Color) {
@@ -332,7 +325,7 @@ impl Canvas {
 
     fn fill_rect(&mut self, top_left: (usize, usize),
 		 bottom_right: (usize, usize), color: Color,
-		 dm: DrawMode) {
+		 dm: &DrawMode) {
 	for x in top_left.0..bottom_right.0 + 1 {
 	    for y in top_left.1..bottom_right.1 + 1 {
 		self.mark_pixel(x, y, color, dm);
@@ -344,7 +337,7 @@ impl Canvas {
 	for x in (midpoint.0 - radius)..(midpoint.0 + radius) {
 	    for y in (midpoint.1 - radius)..(midpoint.1 + radius) {
 		if (x - midpoint.0).pow(2) + (y - midpoint.1).pow(2) < radius.pow(2) {
-		    self.mark_pixel(x, y, color, DrawMode::LayerUnder);
+		    self.mark_pixel(x, y, color, &(layer_under as DrawMode));
 		}
 	    }
 	}

@@ -34,7 +34,7 @@ const EYE_START_MAX: usize = STRANGER_START + 60;
 const EYE_END_MIN: usize = STRANGER_START + 70;
 const EYE_END_MAX: usize = STRANGER_START + 100;
 
-const MIN_EYE_WIDTH: usize = 0;
+const MIN_EYE_WIDTH: usize = 3;
 
 const MIN_LEG_WIDTH: usize = 3;
 const MAX_LEG_WIDTH: usize = 8;
@@ -50,16 +50,22 @@ const NEAR_FOOT_HEIGHT: usize = HEIGHT - 25;
 const MAX_IRIS_RADIUS: usize = EYE_END_MIN - EYE_START_MAX + 2;
 const MIN_IRIS_RADIUS: usize = 4;
 
-const MIN_STRIPE_WIDTH: usize = 5;
-const MAX_STRIPE_WIDTH: usize = 10;
+const MIN_STRIPE_WIDTH: usize = 25;
+const MAX_STRIPE_WIDTH: usize = 50;
+
+const MAX_STRIPE_START: usize = (STRANGER_END - STRANGER_START) * 4 / 5;
 
 type Color = (u8, u8, u8, u8);
 
-type Palette = [Color; 5];
+struct Palette {
+    body: Color,
+    sclera: Color,
+    iris: Color,
+    stripe_outline: Color,
+    stripe: Color,
+}
 
 const BLACK: Color = (0, 0, 0, 255);
-
-//type DrawMode = fn(usize, usize, Color) -> bool;
 
 type DrawMode = dyn Fn(usize, usize, Color) -> bool;
 
@@ -68,7 +74,7 @@ struct Canvas {
 }
 
 struct StrangerParams {
-    color_palette: Palette,
+    palette: Palette,
     core_anchors: [(usize, usize); 4],
     dorsal_anchors: [(usize, usize); 4],
     ventral_anchors: [(usize, usize); 4],
@@ -77,16 +83,12 @@ struct StrangerParams {
     iris_radius: usize,
     leg_width: usize,
     fore_hind_dist: usize,
-    stripes: Option<(usize, usize, usize)>,	
-/*
-    socks: Option<usize>,
-    tears: Option<usize>
-*/
+    stripes: Option<(usize, usize)>,	
 }
 
-const layer_over: &DrawMode = &(|_x, _y, _c| true);
+const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
 
-const layer_under: &DrawMode = &(|_x, _y, c| c.3 < 255);
+const LAYER_UNDER: &DrawMode = &(|_x, _y, c| c.3 < 255);
 
 #[wasm_bindgen]  
 pub fn width() -> usize { WIDTH }
@@ -102,14 +104,13 @@ extern "C" {
 
     
 macro_rules! console_log {
-    // Note that this is using the `log` function imported above during
-    // `bare_bones`
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
 
 #[wasm_bindgen]  
 pub fn render_stranger() ->  *const u8 {
+    let bg_color = (100, 100, 100, 100);
     let mut canvas = Canvas::new();
     let sp = StrangerParams::new();    
     let core = make_spline(sp.core_anchors);
@@ -117,54 +118,77 @@ pub fn render_stranger() ->  *const u8 {
     let ventral = make_spline(sp.ventral_anchors);
     &mut canvas.draw_spline(&dorsal);
     &mut canvas.draw_spline(&ventral);
-    &mut canvas.flood_fill(sp.core_anchors[2].0, sp.core_anchors[2].1, sp.color_palette[1]);
+    &mut canvas.flood_fill(sp.core_anchors[2].0,
+			   sp.core_anchors[2].1,
+			   sp.palette.body,
+			   &vec![bg_color]
+    );
+
+    if let Some((start, width)) = sp.stripes {
+	let mut fill_points = Vec::new();
+	for (i, &(x, y)) in core.iter().skip(start).step_by(width).enumerate(){
+	    &mut canvas.draw_perpendicular_line(&core, 
+						x, y, sp.palette.stripe_outline,
+						sp.palette.body);
+	    if i % 2 == 0 {
+		fill_points.push((x + 1, y));
+	    }
+	}
+	for (x, y) in fill_points {
+	   
+	    &mut canvas.flood_fill(x,
+				   y,
+				   sp.palette.stripe,
+				   &vec![sp.palette.body]
+
+	    );
+
+	}
+    }
+    
     let eye_mid_x = (sp.eye_start_x + sp.eye_end_x) / 2;
     let max_eye_width = min
 			 (y_at_x(&dorsal, eye_mid_x) - y_at_x(&core, eye_mid_x),
 			  y_at_x(&core, eye_mid_x) - y_at_x(&ventral, eye_mid_x))
-	* 3 / 4;
+	* 3 / 5;
     let (top_eye_anchors, bottom_eye_anchors) =
-			  generate_eye_anchors((sp.eye_start_x, y_at_x(&core, sp.eye_start_x)),
-						(sp.eye_end_x, y_at_x(&core, sp.eye_end_x)),
-								   max_eye_width);
+	generate_eye_anchors((sp.eye_start_x, y_at_x(
+	    &core, sp.eye_start_x)),
+			     (sp.eye_end_x, y_at_x(&core, sp.
+						   eye_end_x)), max_eye_width);
     let top_eye = make_spline(top_eye_anchors);
     let bottom_eye = make_spline(bottom_eye_anchors);
     &mut canvas.draw_spline(&top_eye);
     &mut canvas.draw_spline(&bottom_eye);
+let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) + y_at_x(&bottom_eye, eye_mid_x)) / 2;
+
+    &mut canvas.flood_fill(eye_mid_x, eye_mid_y,
+			   sp.palette.sclera,
+			   &vec![sp.palette.body, sp.palette.stripe,
+				 sp.palette.stripe_outline]
+    );
     
-    &mut canvas.flood_fill(sp.core_anchors[2].0, sp.core_anchors[2].1, sp.color_palette[0]);
     
-    let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) + y_at_x(&bottom_eye, eye_mid_x)) / 2;
-    
-    &mut canvas.draw_iris((eye_mid_x, eye_mid_y), sp.iris_radius, sp.color_palette[2]);
-    
-    match sp.stripes {
-	Some((start, width, end)) =>
-	//for &(x, _y) in core.iter().take(core.len() - end).skip(start).step_by(width){
-	    for &(x, y) in core.iter().skip(10).step_by(width * 5){
-		&mut canvas.draw_perpendicular_line(&core, 
-						    x, y, sp.color_palette[3],
-						    sp.color_palette[0]);
-	    }
-	None => ()
-    }
+    &mut canvas.draw_iris((eye_mid_x, eye_mid_y),
+			  sp.iris_radius,
+			  sp.palette.iris);
     
     let leg_start_x = sp.eye_end_x + EYE_LEG_DISTANCE;
-    &mut canvas.draw_leg(leg_start_x, &dorsal, FAR_FOOT_HEIGHT, sp.color_palette[0],
-			 sp.leg_width, layer_under);
+    &mut canvas.draw_leg(leg_start_x, &core, FAR_FOOT_HEIGHT, sp.palette.body,
+			 sp.leg_width, LAYER_UNDER);
 
     
     let leg2_start_x = leg_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
-    &mut canvas.draw_leg(leg2_start_x, &dorsal, NEAR_FOOT_HEIGHT, sp.color_palette[0],
-			 sp.leg_width, layer_over);
+    &mut canvas.draw_leg(leg2_start_x, &dorsal, NEAR_FOOT_HEIGHT, sp.palette.body,
+			 sp.leg_width, LAYER_OVER);
 
     let leg3_start_x = leg_start_x + sp.fore_hind_dist;
-    &mut canvas.draw_leg(leg3_start_x, &dorsal, FAR_FOOT_HEIGHT, sp.color_palette[0],
-			 sp.leg_width, layer_under);
+    &mut canvas.draw_leg(leg3_start_x, &dorsal, FAR_FOOT_HEIGHT, sp.palette.body,
+			 sp.leg_width, LAYER_UNDER);
     
     let leg4_start_x = leg3_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
-    &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, sp.color_palette[0],
-			 sp.leg_width, layer_over);
+    &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, sp.palette.body,
+			 sp.leg_width, LAYER_OVER);
     
     canvas.raw_pixels()
 }
@@ -198,7 +222,7 @@ impl StrangerParams {
     fn new() -> StrangerParams {
 	let mut rng = rand::thread_rng();
 
-	let color_palette = generate_color_palette();
+	let palette = generate_palette();
 	
 	let x0 = STRANGER_START;
 	let y0 = rng.gen_range(MAX_HEIGHT, MIN_HEIGHT);
@@ -229,42 +253,38 @@ impl StrangerParams {
 	let fore_hind_dist = rng.gen_range(MIN_FORE_HIND_LEG_DISTANCE,
 					   MAX_FORE_HIND_LEG_DISTANCE);
 	let stripes =
-	    if rng.gen_range(1, 4) > 0	{
-	    let width = rng.gen_range(MIN_STRIPE_WIDTH, MAX_STRIPE_WIDTH);
-	    Some((rng.gen_range(STRANGER_START, STRANGER_END - width),
-		  width,
-		  rng.gen_range(STRANGER_START + width, STRANGER_END)))
+	    if rng.gen_range(0, 4) > 0	{
+		let width = rng.gen_range(MIN_STRIPE_WIDTH, MAX_STRIPE_WIDTH);
+		let start = if rng.gen_range(0, 3) > 0 {
+		    rng.gen_range(width, MAX_STRIPE_START)
+		}
+		else { width };
+		
+		Some((start, width))
 	    } else { None };
 	StrangerParams {
-	    color_palette: color_palette,
-	    core_anchors: core_anchors,	    
-	    dorsal_anchors: dorsal_anchors,
-	    ventral_anchors: ventral_anchors,
-	    eye_start_x: eye_start_x,
-	    eye_end_x: eye_end_x,
-	    iris_radius: iris_radius,
-	    leg_width: leg_width,
-	    fore_hind_dist: fore_hind_dist,
-	    stripes: stripes
+	    palette,
+	    core_anchors,   
+	    dorsal_anchors,
+	    ventral_anchors,
+	    eye_start_x,
+	    eye_end_x,
+	    iris_radius,
+	    leg_width,
+	    fore_hind_dist,
+	    stripes, 
 	}	
     }
 }
-
-/*
-fn add_colors(a: Color, b: Color) -> Color {
-    let c1 = a.0 * 256 * 256 + a.1 * 256 + a.2;
-    let c2 = b.0 * 256 * 256 + b.1 * 256 + b.2;
-    let sum = c1 + c2;
-    (sum  - (sum % (256 * 256)), (sum % (256 * 256)) - (sum % 256), sum % 256, 255)
-}
- */
 
 fn get_slope(spline: &Vec<(usize, usize)>, x: usize) -> f32 {
     let sample_dist = 5;
     let y_prev = y_at_x(spline, x - sample_dist);
     let y_post = y_at_x(spline, x + sample_dist);
+    /*
     console_log!("y_prev = {}, y_post = {}", y_prev, y_post);
     console_log!("result = {}",  (y_post as f32 - y_prev as f32 )/ (sample_dist * 2) as f32);
+*/
     (y_post as f32 - y_prev as f32 )/ (sample_dist * 2) as f32
 }
 
@@ -272,26 +292,27 @@ fn scale_value(c: Color, scale: u8) -> Color {
     ((c.0 * scale) / 100, (c.1 * scale) / 100, (c.2 * scale) / 100, c.3)
 }
 
-fn generate_color_palette() -> Palette { 
+fn generate_palette() -> Palette { 
     let mut rng = rand::thread_rng();
-    let color0 =  (rng.gen_range(0, 0xFF), rng.gen_range(0, 0xFF),
+    let body =  (rng.gen_range(0, 0xFF), rng.gen_range(0, 0xFF),
 			rng.gen_range(0, 0xFF), 0xFF);
     let split_dist = rng.gen_range(0, 0xFF / 2);
-    let color1 = (0xFF - (color0.0 - split_dist),
-		   0xFF - (color0.1 - split_dist),
-		   0xFF - (color0.2 - split_dist),
+    let sclera = if rng.gen_range(0, 3) > 0 { (0xFF, 0xFF, 0xFF, 0xFF) }
+    else { (0xFF - (body.0 - split_dist),
+	    0xFF - (body.1 - split_dist),
+	    0xFF - (body.2 - split_dist),
+	    0xFF) };
+    let iris = (0xFF - (body.0 + split_dist),
+		   0xFF - (body.1 + split_dist),
+		   0xFF - (body.2 + split_dist),
 		   0xFF);
-    let color2 = (0xFF - (color0.0 + split_dist),
-		   0xFF - (color0.1 + split_dist),
-		   0xFF - (color0.2 + split_dist),
-		   0xFF);
-    let color3 = (0xFF - color1.0,
-		   0xFF - color1.1,
-		   0xFF - color1.2,
+    let stripe = (0xFF - iris.0,
+		  0xFF - iris.1,
+		  0xFF - iris.2,
 		  0xFF);
-    let color4 = scale_value(color3, 50);
+    let stripe_outline = scale_value(stripe, 50);
     
-    [color0, color1, color2, color3, color4]
+    Palette { body, sclera, iris, stripe, stripe_outline }
 }
 
 fn generate_eye_anchors(eye_start: (usize, usize), eye_end: (usize, usize), max_width: usize) ->
@@ -365,33 +386,33 @@ impl Canvas {
 	}
     }
 
-    fn can_fill(&self, x: usize, y: usize, start_color: Color) -> bool {
+    fn can_fill(&self, x: usize, y: usize, fill_over_colors: &[Color]) -> bool {
 	x < STRANGER_END && y < HEIGHT
 	    && x > STRANGER_START && y > 0
-	    && self.pixels[y][x] == start_color
+	    && fill_over_colors.contains(&self.pixels[y][x])
     }
     
-    fn flood_fill(&mut self, x0: usize, y0: usize, color: Color) {
+    fn flood_fill(&mut self, x0: usize, y0: usize, color: Color,
+		  fill_over_colors: &[Color]) {
 	let mut stack = vec![(x0, y0)];
-	let start_color = self.pixels[y0][x0];
 	
 	while stack.len() > 0 {
 	    match stack.pop() {
 		Some((x, y)) => {
 		    self.pixels[y][x] = color;
-		    if self.can_fill(x - 1, y, start_color) {
+		    if self.can_fill(x - 1, y, &fill_over_colors) {
 			stack.push(( x - 1, y ));
 		    }
 		
-		    if self.can_fill(x + 1, y, start_color) {
+		    if self.can_fill(x + 1, y, &fill_over_colors) {
 			stack.push(( x + 1, y ));
 		    }
 		
-		    if self.can_fill(x, y - 1, start_color) {
+		    if self.can_fill(x, y - 1, &fill_over_colors) {
 			stack.push(( x, y - 1 ));
 		    }
 		
-		    if self.can_fill(x, y + 1, start_color) {
+		    if self.can_fill(x, y + 1, &fill_over_colors) {
 			stack.push(( x, y + 1 ));
 		    }
 		}
@@ -433,14 +454,6 @@ impl Canvas {
 	    self.draw_vertical_line(x, 0, HEIGHT - 1,
 		  line_color, &(move |x, y, c| c == body_color));
 	}
-	/*
-	else if f32::abs(m) < 0.0000001 {
-	    self.draw_horizontal_line(y, 0, WIDTH - 1,
-				    line_color,
-				    &(move |x, y, c| c == body_color));
-	}
-*/
-
 	else {
 	let b = y as f32 - (m * x as f32);
 	console_log!("slope: {}, m: {}, x: {}, b: {}", slope, m, x, b);
@@ -450,7 +463,7 @@ impl Canvas {
 	for (x, y) in Bresenham::new((x0 as isize, 0 as isize),
 				     (x1 as isize, HEIGHT as isize)) {
 	    //console_log!("x: {}, y: {}", x, y);
-	    if (x > 0 && x < WIDTH as isize) {
+	    if x > 0 && x < WIDTH as isize {
 		self.mark_pixel(x as usize, y as usize, line_color,
 				&(move |x, y, c| c == body_color));
 	    }

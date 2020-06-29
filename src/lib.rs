@@ -86,7 +86,7 @@ struct StrangerParams {
     leg_width: usize,
     fore_hind_dist: usize,
     stripes: Option<(usize, usize)>,
-    gradient: Option<(usize)>
+    gradient: Option<usize>
 }
 
 const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
@@ -113,10 +113,11 @@ extern "C" {
     fn log(s: &str);
 }
 
-    
+/*    
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
+*/
 
 #[wasm_bindgen]  
 pub fn render_stranger() ->  *const u8 {
@@ -131,7 +132,8 @@ pub fn render_stranger() ->  *const u8 {
     &mut canvas.flood_fill(sp.core_anchors[2].0,
 			   sp.core_anchors[2].1,
 			   sp.palette.body,
-			   &vec![bg_color]
+			   &vec![bg_color],
+			   LAYER_OVER
     );
 
     if let Some(start) = sp.gradient {
@@ -153,7 +155,8 @@ pub fn render_stranger() ->  *const u8 {
 	    &mut canvas.flood_fill(x,
 				   y,
 				   sp.palette.stripe,
-				   &vec![sp.palette.body]
+				   &vec![sp.palette.body],
+				   LAYER_OVER
 
 	    );
 	}
@@ -178,7 +181,8 @@ let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) + y_at_x(&bottom_eye, eye_mid_x)) /
     &mut canvas.flood_fill(eye_mid_x, eye_mid_y,
 			   sp.palette.sclera,
 			   &vec![sp.palette.body, sp.palette.stripe,
-				 sp.palette.stripe_outline]
+				 sp.palette.stripe_outline],
+			   LAYER_OVER
     );
     
     
@@ -347,7 +351,7 @@ fn generate_eye_anchors(eye_start: (usize, usize), eye_end: (usize, usize), max_
     }
 
 fn perpendicular_line_coefficients(core_ptr: &Vec<(usize, usize)>,
-				   x: usize, y: usize) -> (Option<(f32, f32)>) {
+				   x: usize, y: usize) -> Option<(f32, f32)> {
     let slope = get_slope(core_ptr, x);
     let m = -(1.0 / slope);
     if m.is_infinite() { None }
@@ -423,13 +427,14 @@ impl Canvas {
     }
     
     fn flood_fill(&mut self, x0: usize, y0: usize, color: Color,
-		  fill_over_colors: &[Color]) {
+		  fill_over_colors: &[Color], dm: &DrawMode) {
 	let mut stack = vec![(x0, y0)];
 	
 	while stack.len() > 0 {
 	    match stack.pop() {
 		Some((x, y)) => {
-		    self.pixels[y][x] = color;
+		    //self.pixels[y][x] = color;
+		    self.mark_pixel(x, y, color, dm);
 		    if self.can_fill(x - 1, y, &fill_over_colors) {
 			stack.push(( x - 1, y ));
 		    }

@@ -177,6 +177,7 @@ pub fn render_stranger() ->  *const u8 {
     let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) +
 		     y_at_x(&bottom_eye, eye_mid_x)) / 2;
 
+    console_log!("outline: {:?}", sp.palette.stripe_outline);
     &mut canvas.flood_fill(eye_mid_x, eye_mid_y,
 			   sp.palette.sclera,
 			   &vec![sp.palette.body, sp.palette.stripe,
@@ -320,7 +321,7 @@ fn get_slope(spline: &Vec<(usize, usize)>, x: usize) -> f32 {
 }
 
 fn scale_value(c: Color, scale: u8) -> Color {
-    ((c.0 * scale) / 100, (c.1 * scale) / 100, (c.2 * scale) / 100, c.3)
+    (c.0 / 2, c.1 / 2, c.2 / 2, c.3)
 }
 
 fn generate_palette() -> Palette { 
@@ -537,7 +538,6 @@ impl Canvas {
 	let pattern : Vec<&dyn Fn(usize, usize) -> bool> =
 	    vec![&f0, &f1, &f2, &f3, &f4, &f5, &f6, &f7];
 	let width = (end - start) / pattern.len();
-	console_log!("start: {} end: {} width : {}", start, end, width);
 	let iterator = core_ptr.iter()
 	    .take(end)
 	    .skip(start)
@@ -575,7 +575,5 @@ impl Canvas {
 		}
 	    }
 	}
-    }
-
-    
+    }  
 }

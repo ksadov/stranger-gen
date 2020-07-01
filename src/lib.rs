@@ -53,9 +53,11 @@ const MIN_IRIS_RADIUS: usize = 4;
 const MIN_STRIPE_WIDTH: usize = 25;
 const MAX_STRIPE_WIDTH: usize = 35;
 
-const MAX_STRIPE_START: usize = (STRANGER_END - STRANGER_START) * 4 / 5;
+const MAX_STRIPE_START: usize = (STRANGER_END - STRANGER_START) - MAX_STRIPE_WIDTH;
 
-const MAX_GRADIENT_START: usize = MAX_STRIPE_START;
+const MIN_GRADIENT_START: usize = 5;
+const MAX_GRADIENT_START: usize = STRANGER_END - 48;
+const MIN_GRADIENT_WIDTH: usize = 16;
 
 type Color = (u8, u8, u8, u8);
 
@@ -65,6 +67,7 @@ struct Palette {
     iris: Color,
     stripe_outline: Color,
     stripe: Color,
+    gradient: Color
 }
 
 const BLACK: Color = (0, 0, 0, 255);
@@ -86,20 +89,12 @@ struct StrangerParams {
     leg_width: usize,
     fore_hind_dist: usize,
     stripes: Option<(usize, usize)>,
-    gradient: Option<usize>
+    gradient: Option<(usize, usize)>
 }
 
 const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
 
 const LAYER_UNDER: &DrawMode = &(|_x, _y, c| c.3 < 255);
-
-/*
-fn dither_1(x: usize, y: usize, _c: Color) -> bool {
-   (x - y)%4 == 0 && (x - y)%4 == 0) 
-}
- */
-
-const dither_1: &DrawMode = &(|x, y, _c|  (x - y)%4 == 0 && (x - y)%4 == 0);
 
 #[wasm_bindgen]  
 pub fn width() -> usize { WIDTH }
@@ -113,11 +108,11 @@ extern "C" {
     fn log(s: &str);
 }
 
-/*    
+  
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
-*/
+
 
 #[wasm_bindgen]  
 pub fn render_stranger() ->  *const u8 {
@@ -136,8 +131,12 @@ pub fn render_stranger() ->  *const u8 {
 			   LAYER_OVER
     );
 
-    if let Some(start) = sp.gradient {
-	
+    if let Some((start, end)) = sp.gradient {
+	&mut canvas.draw_gradient(&core,
+				  sp.palette.gradient,
+				  sp.palette.body,
+				  start,
+				  end);
     }
 
     if let Some((start, width)) = sp.stripes {
@@ -145,17 +144,16 @@ pub fn render_stranger() ->  *const u8 {
 	for (i, &(x, y)) in core.iter().skip(start).step_by(width).enumerate(){
 	    &mut canvas.draw_perpendicular_line(&core, 
 						x, y, sp.palette.stripe_outline,
-						sp.palette.body);
+						sp.palette.body, sp.palette.gradient);
 	    if i % 2 == 0 {
 		fill_points.push((x + 1, y_at_x(&core, x + 1)));
 	    }
 	}
-	for (x, y) in fill_points {
-	   
+	for (x, y) in fill_points {	   
 	    &mut canvas.flood_fill(x,
 				   y,
 				   sp.palette.stripe,
-				   &vec![sp.palette.body],
+				   &vec![sp.palette.body, sp.palette.gradient],
 				   LAYER_OVER
 
 	    );
@@ -176,12 +174,13 @@ pub fn render_stranger() ->  *const u8 {
     let bottom_eye = make_spline(bottom_eye_anchors);
     &mut canvas.draw_spline(&top_eye);
     &mut canvas.draw_spline(&bottom_eye);
-let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) + y_at_x(&bottom_eye, eye_mid_x)) / 2;
+    let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) +
+		     y_at_x(&bottom_eye, eye_mid_x)) / 2;
 
     &mut canvas.flood_fill(eye_mid_x, eye_mid_y,
 			   sp.palette.sclera,
 			   &vec![sp.palette.body, sp.palette.stripe,
-				 sp.palette.stripe_outline],
+				 sp.palette.stripe_outline, sp.palette.gradient],
 			   LAYER_OVER
     );
     
@@ -217,7 +216,10 @@ fn make_spline(upoints: [(usize, usize); 4]) -> Vec<(usize, usize)> {
 	points[i] = (upoints[i].0 as f64, upoints[i].1 as f64);
     }
     let spline_points = Spline::from_tuples(&points, &opts);
-    let spline_points_int : Vec<(isize, isize)> = spline_points.into_iter().map(|(x, y)| (x as isize, y as isize)).collect();
+    let spline_points_int : Vec<(isize, isize)> =
+	spline_points.into_iter()
+	.map(|(x, y)| (x as isize, y as isize))
+	.collect();
     let mut final_spline: Vec<(usize, usize)> = Vec::new();
     for i in 0..spline_points_int.len() - 1 {
 	for (x, y) in Bresenham::new(spline_points_int[i], spline_points_int[i+1]) {
@@ -269,20 +271,25 @@ impl StrangerParams {
 
 	let fore_hind_dist = rng.gen_range(MIN_FORE_HIND_LEG_DISTANCE,
 					   MAX_FORE_HIND_LEG_DISTANCE);
-	let stripes =
+	let stripes = //None;
+	    
 	    if rng.gen_range(0, 4) > 0	{
 		let width = rng.gen_range(MIN_STRIPE_WIDTH, MAX_STRIPE_WIDTH);
 		let start = if rng.gen_range(0, 3) > 0 {
-		    rng.gen_range(width, MAX_STRIPE_START)
+		    rng.gen_range(width, width * 2)
 		}
 		else { width };
 		
 		Some((start, width))
 	    } else { None };
 
-	let gradient =
+	let gradient = //None;
+	    
 	    if rng.gen_range(1, 4) > 0 {
-		Some(rng.gen_range(0, MAX_STRIPE_START))
+		let start = rng.gen_range(MIN_GRADIENT_START, MAX_GRADIENT_START);
+		let end = rng.gen_range(start + MIN_GRADIENT_WIDTH,
+					STRANGER_END - STRANGER_START);
+		Some((start, end))
 	    } else { None };
 
 	StrangerParams {
@@ -335,8 +342,10 @@ fn generate_palette() -> Palette {
 		  0xFF - iris.2,
 		  0xFF);
     let stripe_outline = scale_value(stripe, 50);
-    
-    Palette { body, sclera, iris, stripe, stripe_outline }
+    let gradient = (rng.gen_range(0, 0xFF), rng.gen_range(0, 0xFF),
+		    rng.gen_range(0, 0xFF),
+		    0xFF);
+    Palette { body, sclera, iris, stripe, stripe_outline, gradient }
 }
 
 fn generate_eye_anchors(eye_start: (usize, usize), eye_end: (usize, usize), max_width: usize) ->
@@ -344,8 +353,8 @@ fn generate_eye_anchors(eye_start: (usize, usize), eye_end: (usize, usize), max_
 	let mut rng = rand::thread_rng();
 	let x = (eye_start.0 + eye_end.0) / 2;
 	let y_mid = (eye_start.1 + eye_end.1) / 2;
-	let y_top = y_mid + rng.gen_range(MIN_EYE_WIDTH, max_width);
-	let y_bottom = y_mid - rng.gen_range(MIN_EYE_WIDTH, max_width);
+	let y_top = y_mid + rng.gen_range(max_width / 2, max_width);
+	let y_bottom = y_mid - rng.gen_range(max_width / 2, max_width);
 	([eye_start, (x, y_top), eye_end, eye_end],
 	 [eye_start, (x, y_bottom), eye_end, eye_end])
     }
@@ -359,6 +368,22 @@ fn perpendicular_line_coefficients(core_ptr: &Vec<(usize, usize)>,
 	Some((m, y as f32 - (m * x as f32)))
     }
 }
+
+fn pos0 (x: usize, y: usize, m: f32, b: f32) -> bool {
+    (y as f32) < m * (x as f32) + b
+}
+fn pos1 (x: usize, y: usize, m: f32, b: f32) -> bool {
+    (y as f32) > m * (x as f32) + b
+}
+
+fn f0 (x: usize, y: usize) -> bool { (x + y)%4 == 0 && (x - y)%4 == 0 }
+fn f1 (x: usize, y: usize) -> bool { (x - y)%4 == 0 }
+fn f2 (x: usize, y: usize) -> bool { (x - y)%4 == 0 || (x + y)%4 == 0 }
+fn f3 (x: usize, y: usize) -> bool { (x + y)%2 == 0 }
+fn f4 (x: usize, y: usize) -> bool { !((x - y + 1)%4 == 0 || (x + y + 1)%4 == 0) }
+fn f5 (x: usize, y: usize) -> bool { !((x - y + 1)%4 == 0) }
+fn f6 (x: usize, y: usize) -> bool { !((x + y + 1)%4 == 0 && (x - y + 1)%4 == 0) }
+fn f7 (x: usize, y: usize) -> bool { true }
 
 impl Canvas {
     			      
@@ -428,7 +453,8 @@ impl Canvas {
     
     fn flood_fill(&mut self, x0: usize, y0: usize, color: Color,
 		  fill_over_colors: &[Color], dm: &DrawMode) {
-	let mut stack = vec![(x0, y0)];
+	let mut stack = if fill_over_colors.contains(&self.pixels[y0][x0]) {
+	    vec![(x0, y0)] } else { vec![] };
 	
 	while stack.len() > 0 {
 	    match stack.pop() {
@@ -473,7 +499,7 @@ impl Canvas {
 	for x in (midpoint.0 - radius)..(midpoint.0 + radius) {
 	    for y in (midpoint.1 - radius)..(midpoint.1 + radius) {
 		if (x - midpoint.0).pow(2) + (y - midpoint.1).pow(2) < radius.pow(2) {
-		    self.mark_pixel(x, y, color, &(move |x, y, c| c == bg_color));
+		    self.mark_pixel(x, y, color, &(move |_x, _y, c| c == bg_color));
 		    //self.mark_pixel(x, y, color, &(colorBG as DrawMode));
 		}
 	    }
@@ -481,27 +507,75 @@ impl Canvas {
     }
 
     fn draw_perpendicular_line(&mut self, core_ptr: &Vec<(usize, usize)>,
-			       x: usize, y: usize, line_color: Color, body_color: Color) {
+			       x: usize, y: usize, line_color: Color,
+			       body_color: Color, gradient: Color) {
 	match perpendicular_line_coefficients(core_ptr, x, y) {
 	    None => {
 		self.draw_vertical_line(x, 0, HEIGHT - 1, line_color,
-					&(move |x, y, c| c == body_color));
+					&(move |x, y, c| c == body_color ||
+					  c == gradient));
 	    }
 	    Some((m, b)) => {
 		let b = y as f32 - (m * x as f32);
-		//console_log!("slope: {}, m: {}, x: {}, b: {}", slope, m, x, b);
 		let x0 = (0 as f32 - b)/m;
 		let x1 = (HEIGHT as f32 - b)/m;
-		//console_log!("x0: {}, x1: {}", x0, x1);
 		for (x, y) in Bresenham::new((x0 as isize, 0 as isize),
 					     (x1 as isize, HEIGHT as isize)) {
-		    //console_log!("x: {}, y: {}", x, y);
 		    if x > 0 && x < WIDTH as isize {
 			self.mark_pixel(x as usize, y as usize, line_color,
-					&(move |x, y, c| c == body_color));
+					&(move |_x, _y, c| c == body_color ||
+					  c == gradient));
 		    }
 		}
 	    }
 	}
-    }     
+    }
+
+    fn draw_gradient(&mut self, core_ptr: &Vec<(usize, usize)>,
+		     gradient_color: Color,
+		     body_color: Color, start: usize, end: usize) {
+	let pattern : Vec<&dyn Fn(usize, usize) -> bool> =
+	    vec![&f0, &f1, &f2, &f3, &f4, &f5, &f6, &f7];
+	let width = (end - start) / pattern.len();
+	console_log!("start: {} end: {} width : {}", start, end, width);
+	let iterator = core_ptr.iter()
+	    .take(end)
+	    .skip(start)
+	    .step_by(width)
+	    .enumerate();
+	for (i, &(x0, y0)) in iterator {
+	    let p = pattern.clone();
+	    match perpendicular_line_coefficients(core_ptr,
+							x0,
+						 y_at_x(core_ptr, x0)) {
+		Some ((m, b)) => {
+
+		    let pos : &dyn Fn(usize, usize, f32, f32) -> bool =
+			if m > 0.0 { &pos0 } else { &pos1 };
+		    for y in 0..HEIGHT {
+			for x in STRANGER_START..STRANGER_END {
+			    if pos(x, y, m, b) && p[i%8](x, y) &&
+				self.pixels[y][x] == body_color
+			    {
+				self.mark_pixel(x, y, gradient_color, LAYER_OVER);
+			    }
+			}
+		    }
+		}					    
+		None => {
+		    for y in 0..HEIGHT {
+			for x in x0..STRANGER_END {
+			    if p[i%8](x, y) &&
+				self.pixels[y][x] == body_color
+			    {
+				self.mark_pixel(x, y, gradient_color, LAYER_OVER);
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    
 }

@@ -38,8 +38,7 @@ const EYE_END_MAX: usize = STRANGER_START + 100;
 const MIN_EYE_WIDTH: usize = 4;
 
 const MIN_LEG_WIDTH: usize = 3;
-const MAX_LEG_WIDTH: usize = 8;
-    
+const MAX_LEG_WIDTH: usize = 8;    
 const EYE_LEG_DISTANCE: usize = 30;
 const NEAR_FAR_LEG_DISTANCE_RATIO: usize = 2;
 const MIN_FORE_HIND_LEG_DISTANCE: usize = 100;
@@ -179,7 +178,6 @@ pub fn render_stranger() ->  *const u8 {
     let eye_mid_y = (y_at_x(&top_eye, eye_mid_x) +
 		     y_at_x(&bottom_eye, eye_mid_x)) / 2;
 
-    console_log!("outline: {:?}", sp.palette.stripe_outline);
     &mut canvas.flood_fill(eye_mid_x, eye_mid_y,
 			   sp.palette.sclera,
 			   &vec![sp.palette.body, sp.palette.stripe,
@@ -210,13 +208,6 @@ pub fn render_stranger() ->  *const u8 {
 			 sp.leg_width, LAYER_OVER);
 
     if let Some(ratio) = sp.mouth {
-	/*
-	let mouthline = core.clone();
-	&mut canvas.draw_spline(&(mouthline
-				  .into_iter()
-				  .take((EYE_START_MIN as f32 * ratio) as usize)
-				  .collect()));
-	 */
 	let mouth_end_x = (ratio * sp.eye_start_x as f32) as usize;
 	let mouth_end_y = mid_y(&core, &dorsal, mouth_end_x);
 	let (mouth_start_x, mouth_start_y) = core[0];
@@ -295,8 +286,7 @@ impl StrangerParams {
 
 	let fore_hind_dist = rng.gen_range(MIN_FORE_HIND_LEG_DISTANCE,
 					   MAX_FORE_HIND_LEG_DISTANCE);
-	let stripes = //None;
-	    
+	let stripes =	    
 	    if rng.gen_range(0, 4) > 0	{
 		let width = rng.gen_range(MIN_STRIPE_WIDTH, MAX_STRIPE_WIDTH);
 		let start = if rng.gen_range(0, 3) > 0 {
@@ -307,9 +297,13 @@ impl StrangerParams {
 		Some((start, width))
 	    } else { None };
 
-	let gradient = //None;
+	let gradient_enabled = match stripes {
+	    Some((_s, _w)) => {  rng.gen_range(0, 5) == 0 }
+	    None => { true }		
+	};
 	    
-	    if rng.gen_range(1, 4) > 0 {
+	let gradient =	    
+	    if gradient_enabled {
 		let start = rng.gen_range(MIN_GRADIENT_START, MAX_GRADIENT_START);
 		let end = rng.gen_range(start + MIN_GRADIENT_WIDTH,
 					STRANGER_END - STRANGER_START);
@@ -317,7 +311,7 @@ impl StrangerParams {
 	    } else { None };
 
 	let mouth =
-	    if rng.gen_range(1, 4) > 0 {
+	    if rng.gen_range(0, 8) > 0 {
 		Some(rng.gen_range(80, 100) as f32 / 100.0)
 	    } else { None };
 
@@ -534,14 +528,11 @@ impl Canvas {
     }
 
     fn draw_iris(&mut self, midpoint: (usize, usize), radius: usize, color: Color) {
-	//let bg_color = Rc::new(self.pixels[midpoint.1][midpoint.1]);
 	let bg_color = self.pixels[midpoint.1][midpoint.0];
-	//fn colorBG(x: usize, y: usize, c: Color) {c == bg_color}
 	for x in (midpoint.0 - radius)..(midpoint.0 + radius) {
 	    for y in (midpoint.1 - radius)..(midpoint.1 + radius) {
 		if (x - midpoint.0).pow(2) + (y - midpoint.1).pow(2) < radius.pow(2) {
 		    self.mark_pixel(x, y, color, &(move |_x, _y, c| c == bg_color));
-		    //self.mark_pixel(x, y, color, &(colorBG as DrawMode));
 		}
 	    }
 	}

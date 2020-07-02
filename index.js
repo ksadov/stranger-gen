@@ -1,4 +1,5 @@
 import wasmInit from "./pkg/stranger_gen.js";
+
 const runWasm = async () => {
     const rustWasm = await wasmInit("./pkg/stranger_gen_bg.wasm");    
     var canvas = document.getElementById("strangerCanvas");    
@@ -12,8 +13,6 @@ const runWasm = async () => {
     ctx.imageSmoothingEnabled = false;
     var unrendered = true;
     var pixelsPtr;
-    /* I'm just not going to bother figuring out why the rendering crashes 2%
-       of the time */
     while (unrendered) {
 	try {
 	    pixelsPtr = rustWasm.render_stranger();
@@ -29,12 +28,16 @@ const runWasm = async () => {
     ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
 
     gen.addEventListener('click', function() {
-	console.log("x");
+	try {
 	    pixelsPtr = rustWasm.render_stranger();
+	    unrendered = false;
+	}
+	catch (err) {}
 	pixelArray = new Uint8ClampedArray(rustWasm.memory.buffer,
 					   pixelsPtr, 4 * width * height);
 	ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
-	}, false);
+    }, false);
 }    
+
 
 runWasm();

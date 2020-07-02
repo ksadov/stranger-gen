@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use cubic_spline::{Spline, SplineOpts};
 use bresenham::Bresenham;
 use rand::Rng;
+//use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::cmp::min;
 extern crate console_error_panic_hook;
 use std::panic;
@@ -29,7 +30,7 @@ const ANCHOR_2_MAX_X: usize = STRANGER_END - 50;
 const MAX_THICC: usize = 35;
 const MIN_THICC: usize = 15;
 
-const EYE_START_MIN: usize = STRANGER_START + 20;
+const EYE_START_MIN: usize = STRANGER_START + 40;
 const EYE_START_MAX: usize = STRANGER_START + 60;
 const EYE_END_MIN: usize = STRANGER_START + 70;
 const EYE_END_MAX: usize = STRANGER_START + 100;
@@ -89,7 +90,8 @@ struct StrangerParams {
     leg_width: usize,
     fore_hind_dist: usize,
     stripes: Option<(usize, usize)>,
-    gradient: Option<(usize, usize)>
+    gradient: Option<(usize, usize)>,
+    mouth: Option<f32>
 }
 
 const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
@@ -206,8 +208,28 @@ pub fn render_stranger() ->  *const u8 {
     let leg4_start_x = leg3_start_x + NEAR_FAR_LEG_DISTANCE_RATIO * sp.leg_width;
     &mut canvas.draw_leg(leg4_start_x, &dorsal, NEAR_FOOT_HEIGHT, sp.palette.body,
 			 sp.leg_width, LAYER_OVER);
+
+    if let Some(ratio) = sp.mouth {
+	/*
+	let mouthline = core.clone();
+	&mut canvas.draw_spline(&(mouthline
+				  .into_iter()
+				  .take((EYE_START_MIN as f32 * ratio) as usize)
+				  .collect()));
+	 */
+	let mouth_end_x = (ratio * sp.eye_start_x as f32) as usize;
+	let mouth_end_y = mid_y(&core, &dorsal, mouth_end_x);
+	let (mouth_start_x, mouth_start_y) = core[0];
+	&mut canvas.draw_line(mouth_start_x, mouth_start_y,
+			      mouth_end_x, mouth_end_y,
+			      BLACK, LAYER_OVER);
+    }
     
     canvas.raw_pixels()
+}
+
+fn mid_y(s1: &Vec<(usize, usize)>, s2: &Vec<(usize, usize)>, x : usize) -> usize {
+    (y_at_x(s1, x) + y_at_x(s2, x) ) / 2
 }
 
 fn make_spline(upoints: [(usize, usize); 4]) -> Vec<(usize, usize)> {
@@ -242,6 +264,7 @@ impl StrangerParams {
     fn new() -> StrangerParams {
 	let mut rng = rand::thread_rng();
 
+	//let mut rng = StdRng::from_seed(100);
 	let palette = generate_palette();
 	
 	let x0 = STRANGER_START;
@@ -293,6 +316,11 @@ impl StrangerParams {
 		Some((start, end))
 	    } else { None };
 
+	let mouth =
+	    if rng.gen_range(1, 4) > 0 {
+		Some(rng.gen_range(80, 100) as f32 / 100.0)
+	    } else { None };
+
 	StrangerParams {
 	    palette,
 	    core_anchors,   
@@ -304,7 +332,8 @@ impl StrangerParams {
 	    leg_width,
 	    fore_hind_dist,
 	    stripes,
-	    gradient
+	    gradient,
+	    mouth
 	}	
     }
 }
@@ -313,14 +342,10 @@ fn get_slope(spline: &Vec<(usize, usize)>, x: usize) -> f32 {
     let sample_dist = 5;
     let y_prev = y_at_x(spline, x - sample_dist);
     let y_post = y_at_x(spline, x + sample_dist);
-    /*
-    console_log!("y_prev = {}, y_post = {}", y_prev, y_post);
-    console_log!("result = {}",  (y_post as f32 - y_prev as f32 )/ (sample_dist * 2) as f32);
-*/
     (y_post as f32 - y_prev as f32 )/ (sample_dist * 2) as f32
 }
 
-fn scale_value(c: Color, scale: u8) -> Color {
+fn scale_value(c: Color) -> Color {
     (c.0 / 2, c.1 / 2, c.2 / 2, c.3)
 }
 
@@ -342,7 +367,7 @@ fn generate_palette() -> Palette {
 		  0xFF - iris.1,
 		  0xFF - iris.2,
 		  0xFF);
-    let stripe_outline = scale_value(stripe, 50);
+    let stripe_outline = scale_value(stripe);
     let gradient = (rng.gen_range(0, 0xFF), rng.gen_range(0, 0xFF),
 		    rng.gen_range(0, 0xFF),
 		    0xFF);
@@ -443,6 +468,21 @@ impl Canvas {
 			    dm: &DrawMode) {
 	for x in start_x..(end_x + 1) {
 	    self.mark_pixel(x, y, color, dm);
+	}
+    }
+
+    fn draw_line(&mut self,
+		 x0: usize,
+		 y0: usize,
+		 x1 : usize,
+		 y1: usize,
+		 color: Color,
+		 dm: &DrawMode) {
+	for (x, y) in Bresenham::new((x0 as isize, y0 as isize),
+				     (x1 as isize, y1 as isize)) {
+	    if x > 0 && x < WIDTH as isize {
+		self.mark_pixel(x as usize, y as usize, color, dm);
+	    }
 	}
     }
 

@@ -36,18 +36,21 @@ body {
     box-sizing: content-box;
 }
 
+.nav {
+    background: none;
+    border: none;
+    font-family: Monospace;
+    font-weight: bold;
+    font-size: 20px;
+    padding: 0 5px 0 5px;
+}
+
 #nav_l {
     float: left;
 }
 
 #nav_l {
     float: right;
-}
-
-#nav_l, #nav_r {
-    font-weight: bold;
-    font-size: 20px;
-    padding: 0 5px 0 5px;
 }
 
 #title_holder {

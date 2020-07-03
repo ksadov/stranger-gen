@@ -3,7 +3,8 @@ import wasmInit from "./pkg/stranger_gen.js";
 const runWasm = async () => {
     const rustWasm = await wasmInit("./pkg/stranger_gen_bg.wasm");    
     var canvas = document.getElementById("strangerCanvas");    
-    var gen =  document.getElementById("genButton");
+    var navL =  document.getElementById("nav_l");
+    var navR =  document.getElementById("nav_r");
     var height = rustWasm.height();
     canvas.height = height;
     var width = rustWasm.width();
@@ -31,7 +32,11 @@ const runWasm = async () => {
 
     generate();
 
-    gen.addEventListener('click', function() {
+    navL.addEventListener('click', function() {
+	generate();
+    }, false);
+
+    navR.addEventListener('click', function() {
 	generate();
     }, false);
 }    

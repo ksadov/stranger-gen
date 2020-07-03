@@ -11,31 +11,28 @@ const runWasm = async () => {
 
     var ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    var unrendered = true;
-    var pixelsPtr;
-    while (unrendered) {
-	try {
-	    pixelsPtr = rustWasm.render_stranger();
-	    unrendered = false;
-	}
-	catch (err) {}
-    }
-    
-    var pixelArray = new Uint8ClampedArray(rustWasm.memory.buffer,
-					   pixelsPtr,
-					   4 * width * height);
 
-    ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
+    var pixelsPtr; var pixelArray;
+    
+    function generate() {
+	var unrendered = true;
+	while (unrendered) {
+	    try {
+		pixelsPtr = rustWasm.render_stranger();
+		unrendered = false;
+	    }
+	    catch (err) {}
+	    pixelArray = new Uint8ClampedArray(rustWasm.memory.buffer,
+					       pixelsPtr, 4 * width * height);
+	    ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
+	    
+	}
+    }
+
+    generate();
 
     gen.addEventListener('click', function() {
-	try {
-	    pixelsPtr = rustWasm.render_stranger();
-	    unrendered = false;
-	}
-	catch (err) {}
-	pixelArray = new Uint8ClampedArray(rustWasm.memory.buffer,
-					   pixelsPtr, 4 * width * height);
-	ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
+	generate();
     }, false);
 }    
 

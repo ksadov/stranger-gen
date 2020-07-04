@@ -389,17 +389,29 @@ impl Metadata {
 	let class_t = class_opts[rng.gen_range(0, class_opts.len())].to_string();
 	let disposition =
 	    disposition_opts[rng.gen_range(0, disposition_opts.len())].to_string();
-	let height = rng.gen_range(1, 1000) as f32 / 10.0;
-	let length = rng.gen_range(1, 2000) as f32 / 10.0;
+	let height =
+	    if rng.gen_range(0, 3) == 0 {
+		rng.gen_range(1, 1000) as f32 / 10.0
+	    } else { rng.gen_range(1, 100) as f32 / 10.0 };
+	let length =
+	    if rng.gen_range(0, 3) == 0 {
+		rng.gen_range(1, 3000) as f32 / 10.0
+	    } else { rng.gen_range(1, 300) as f32 / 10.0 };
 	let weight = rng.gen_range(1, 10000) as f32 / 10.0;
 	let size_variance = rng.gen_range(0, 100);
-	let iq = rng.gen_range(0, 1000000);
+	let iq =
+	    if rng.gen_range(0, 10) == 0 {
+		rng.gen_range(0, 1000000)
+	    } else { rng.gen_range(0, 150) };
 	let core_temp = rng.gen_range(-2000, 10000) as f32 / 10.0;
 	let stability = rng.gen_range(1, 100);
 	let prevalence = rng.gen_range(1, 100);
 	let constancy = rng.gen_range(1, 100);
-	let longevity = rng.gen_range(1, 1000) as f32 / 10.0;
-	let no_appearing = rng.gen_range(1, 500);
+	let longevity =
+	    if rng.gen_range(0, 3) == 0 {
+		rng.gen_range(1, 1000) as f32 / 10.0
+	    } else { rng.gen_range(10, 200) as f32 / 100.0 };
+	let no_appearing = rng.gen_range(1, 12);
 	let vision =  vision_opts[rng.gen_range(0, vision_opts.len())].to_string();
 	let language_family =
 	    language_family_opts[rng.gen_range(0, language_family_opts.len())].to_string();

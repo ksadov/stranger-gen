@@ -72,6 +72,8 @@ struct Palette {
 
 const BLACK: Color = (0, 0, 0, 255);
 
+const BG_COLOR: Color = (200, 200, 200, 255);
+
 type DrawMode = dyn Fn(usize, usize, Color) -> bool;
 
 struct Canvas {
@@ -114,7 +116,7 @@ pub struct Metadata {
 
 const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
 
-const LAYER_UNDER: &DrawMode = &(|_x, _y, c| c.3 < 255);
+const LAYER_UNDER: &DrawMode = &(|_x, _y, c| c == BG_COLOR);
 
 #[wasm_bindgen]  
 pub fn width() -> usize { WIDTH }
@@ -136,7 +138,6 @@ macro_rules! console_log {
 
 #[wasm_bindgen]  
 pub fn render_stranger() ->  *const u8 {
-    let bg_color = (100, 100, 100, 100);
     let mut canvas = Canvas::new();
     let sp = StrangerParams::new();    
     let core = make_spline(sp.core_anchors);
@@ -147,7 +148,7 @@ pub fn render_stranger() ->  *const u8 {
     &mut canvas.flood_fill(sp.core_anchors[2].0,
 			   sp.core_anchors[2].1,
 			   sp.palette.body,
-			   &vec![bg_color],
+			   &vec![BG_COLOR],
 			   LAYER_OVER
     );
 
@@ -534,7 +535,7 @@ impl Canvas {
     fn new() -> Canvas {
 	panic::set_hook(Box::new(console_error_panic_hook::hook));
 	Canvas {
-	    pixels: [[(100, 100, 100, 100); WIDTH]; HEIGHT]
+	    pixels: [[BG_COLOR; WIDTH]; HEIGHT]
 	}
     }
     

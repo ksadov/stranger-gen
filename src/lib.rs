@@ -68,7 +68,7 @@ struct Palette {
 
 const BLACK: Color = (0, 0, 0, 255);
 
-const BG_COLOR: Color = (200, 200, 200, 255);
+const BG_COLOR: Color = (200, 200, 200, 0);
 
 type DrawMode = dyn Fn(usize, usize, Color) -> bool;
 
@@ -370,7 +370,7 @@ impl Metadata {
 	let disposition_opts =
 	    [
 		"choleric", "melancholic",
-		"sanguine", "phleghmatic"
+		"sanguine", "phlegmatic"
 	    ];
 	let vision_opts =
 	    [
@@ -392,10 +392,8 @@ impl Metadata {
 	    if rng.gen_range(0, 3) == 0 {
 		rng.gen_range(1, 1000) as f32 / 10.0
 	    } else { rng.gen_range(1, 100) as f32 / 10.0 };
-	let length =
-	    if rng.gen_range(0, 3) == 0 {
-		rng.gen_range(1, 3000) as f32 / 10.0
-	    } else { rng.gen_range(1, 300) as f32 / 10.0 };
+	let length = (height / ((MAX_HEIGHT + MIN_HEIGHT) as f32 / 2.0)) *
+	    (STRANGER_END - STRANGER_START) as f32;
 	let weight = rng.gen_range(1, 10000) as f32 / 10.0;
 	let size_variance = rng.gen_range(0, 100);
 	let iq =

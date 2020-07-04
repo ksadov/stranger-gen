@@ -35,8 +35,6 @@ const EYE_START_MAX: usize = STRANGER_START + 60;
 const EYE_END_MIN: usize = STRANGER_START + 70;
 const EYE_END_MAX: usize = STRANGER_START + 100;
 
-const MIN_EYE_WIDTH: usize = 4;
-
 const MIN_LEG_WIDTH: usize = 3;
 const MAX_LEG_WIDTH: usize = 8;    
 const EYE_LEG_DISTANCE: usize = 30;
@@ -52,8 +50,6 @@ const MIN_IRIS_RADIUS: usize = 4;
 
 const MIN_STRIPE_WIDTH: usize = 25;
 const MAX_STRIPE_WIDTH: usize = 35;
-
-const MAX_STRIPE_START: usize = (STRANGER_END - STRANGER_START) - MAX_STRIPE_WIDTH;
 
 const MIN_GRADIENT_START: usize = 5;
 const MAX_GRADIENT_START: usize = STRANGER_END - 48;
@@ -130,10 +126,12 @@ extern "C" {
     fn log(s: &str);
 }
 
-  
+
+/*
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
+*/
 
 
 #[wasm_bindgen]  
@@ -528,7 +526,7 @@ fn f3 (x: usize, y: usize) -> bool { (x + y)%2 == 0 }
 fn f4 (x: usize, y: usize) -> bool { !((x - y + 1)%4 == 0 || (x + y + 1)%4 == 0) }
 fn f5 (x: usize, y: usize) -> bool { !((x - y + 1)%4 == 0) }
 fn f6 (x: usize, y: usize) -> bool { !((x + y + 1)%4 == 0 && (x - y + 1)%4 == 0) }
-fn f7 (x: usize, y: usize) -> bool { true }
+fn f7 (_x: usize, _y: usize) -> bool { true }
 
 impl Canvas {
     			      
@@ -669,11 +667,10 @@ impl Canvas {
 	match perpendicular_line_coefficients(core_ptr, x, y) {
 	    None => {
 		self.draw_vertical_line(x, 0, HEIGHT - 1, line_color,
-					&(move |x, y, c| c == body_color ||
-					  c == gradient));
+					&(move |_x, _y, c|
+					  c == body_color || c == gradient));
 	    }
 	    Some((m, b)) => {
-		let b = y as f32 - (m * x as f32);
 		let x0 = (0 as f32 - b)/m;
 		let x1 = (HEIGHT as f32 - b)/m;
 		for (x, y) in Bresenham::new((x0 as isize, 0 as isize),
@@ -699,7 +696,7 @@ impl Canvas {
 	    .skip(start)
 	    .step_by(width)
 	    .enumerate();
-	for (i, &(x0, y0)) in iterator {
+	for (i, &(x0, _y0)) in iterator {
 	    let p = pattern.clone();
 	    match perpendicular_line_coefficients(core_ptr,
 							x0,

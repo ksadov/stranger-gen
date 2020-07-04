@@ -93,6 +93,25 @@ struct StrangerParams {
     mouth: Option<f32>
 }
 
+#[wasm_bindgen]
+pub struct Metadata {
+    class_t: String,
+    disposition: String,
+    pub height: f32,
+    pub length: f32,
+    pub weight: f32,
+    pub size_variance: i32,
+    pub iq: i32,
+    pub core_temp: f32,
+    pub stability: i32,
+    pub prevalence: i32,
+    pub constancy: i32,
+    pub longevity: i32,
+    pub no_appearing: i32,
+    vision: String,
+    language_family: String    
+}
+
 const LAYER_OVER: &DrawMode = &(|_x, _y, _c| true);
 
 const LAYER_UNDER: &DrawMode = &(|_x, _y, c| c.3 < 255);
@@ -254,8 +273,7 @@ fn y_at_x (spline: &[(usize, usize)], x0: usize) -> usize {
 impl StrangerParams {
     fn new() -> StrangerParams {
 	let mut rng = rand::thread_rng();
-
-	//let mut rng = StdRng::from_seed(100);
+	
 	let palette = generate_palette();
 	
 	let x0 = STRANGER_START;
@@ -330,6 +348,100 @@ impl StrangerParams {
 	    mouth
 	}	
     }
+}
+
+#[wasm_bindgen]
+impl Metadata {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Metadata {
+	let class_opts =
+	    [
+		"companion", "competitor", "conscriptor",
+		"curio", "defective", "derilect",
+		"derivative", "erratic", "falsifier",
+		"fluid", "imitator", "manual",
+		"messenger", "neoplastic", "nullifier",
+		"objective", "occupant", "operative",
+		"predator", "primitive", "radial",
+		"regulator", "saboteur", "slanderer",
+		"stabilizer", "structural", "substantive",
+		"suitor", "supervisor", "transient",
+		"widower"
+	    ];
+	let disposition_opts =
+	    [
+		"choleric", "melancholic",
+		"sanguine", "phleghmatic"
+	    ];
+	let vision_opts =
+	    [
+		"far", "near", "near-far", "blind"
+	    ];
+	let language_family_opts =
+	    [
+		"complex", "inarticulate", "imitative",
+		"inhibited", "predicative", "inert",
+		"wild", "reactive", "resonant",
+		"mute", "true mute"];
+	
+	let mut rng = rand::thread_rng();
+	
+	let class_t = class_opts[rng.gen_range(0, class_opts.len())].to_string();
+	let disposition =
+	    disposition_opts[rng.gen_range(0, disposition_opts.len())].to_string();
+	let height = 0.0;
+	let length = 0.0;
+	let weight = 0.0;
+	let size_variance = 0;
+	let iq = 0;
+	let core_temp = 0.0;
+	let stability = 0;
+	let prevalence = 0;
+	let constancy = 0;
+	let longevity = 0;
+	let no_appearing = 0;
+	let vision =  vision_opts[rng.gen_range(0, vision_opts.len())].to_string();
+	let language_family =
+	    language_family_opts[rng.gen_range(0, language_family_opts.len())].to_string();
+	Metadata {
+	    class_t,
+	    disposition,
+	    height,
+	    length,
+	    weight,
+	    size_variance,
+	    iq,
+	    core_temp,
+	    stability,
+	    prevalence,
+	    constancy,
+	    longevity,
+	    no_appearing,
+	    vision,
+	    language_family  
+	}
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn class_t(&self) -> String {
+        self.class_t.clone()
+    }
+    
+    #[wasm_bindgen(getter)]
+    pub fn disposition(&self) -> String {
+        self.disposition.clone()
+    }
+    
+    #[wasm_bindgen(getter)]
+    pub fn vision(&self) -> String {
+        self.vision.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn language_family(&self) -> String {
+        self.language_family.clone()
+    }
+
 }
 
 fn get_slope(spline: &Vec<(usize, usize)>, x: usize) -> f32 {

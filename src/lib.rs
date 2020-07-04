@@ -106,7 +106,7 @@ pub struct Metadata {
     pub stability: i32,
     pub prevalence: i32,
     pub constancy: i32,
-    pub longevity: i32,
+    pub longevity: f32,
     pub no_appearing: i32,
     vision: String,
     language_family: String    
@@ -389,17 +389,17 @@ impl Metadata {
 	let class_t = class_opts[rng.gen_range(0, class_opts.len())].to_string();
 	let disposition =
 	    disposition_opts[rng.gen_range(0, disposition_opts.len())].to_string();
-	let height = 0.0;
-	let length = 0.0;
-	let weight = 0.0;
-	let size_variance = 0;
-	let iq = 0;
-	let core_temp = 0.0;
-	let stability = 0;
-	let prevalence = 0;
-	let constancy = 0;
-	let longevity = 0;
-	let no_appearing = 0;
+	let height = rng.gen_range(1, 1000) as f32 / 10.0;
+	let length = rng.gen_range(1, 2000) as f32 / 10.0;
+	let weight = rng.gen_range(1, 10000) as f32 / 10.0;
+	let size_variance = rng.gen_range(0, 100);
+	let iq = rng.gen_range(0, 1000000);
+	let core_temp = rng.gen_range(-2000, 10000) as f32 / 10.0;
+	let stability = rng.gen_range(1, 100);
+	let prevalence = rng.gen_range(1, 100);
+	let constancy = rng.gen_range(1, 100);
+	let longevity = rng.gen_range(1, 1000) as f32 / 10.0;
+	let no_appearing = rng.gen_range(1, 500);
 	let vision =  vision_opts[rng.gen_range(0, vision_opts.len())].to_string();
 	let language_family =
 	    language_family_opts[rng.gen_range(0, language_family_opts.len())].to_string();

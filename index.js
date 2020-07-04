@@ -40,23 +40,23 @@ const runWasm = async () => {
     var pixelsPtr; var pixelArray;
 
     function c_to_f(c) {
-	return ((c * 9/5) + 32);
+	return (round_1((c * 9/5) + 32));
     }
 
     function kg_to_lb(kg) {
-	return 2.205 * kg;
+	return (round_1(2.205 * kg));
     }
 
     function m_to_ft(m) {
-	return 3.281 * m;
+	return (round_1(3.281 * m));
     }
     
     function assign_measurements(meta) {
 	if (metric) {
-	    height_f.innerHTML = meta.height + " m";
-	    length_f.innerHTML = meta.length + " m";
-	    weight_f.innerHTML = meta.weight + " kg";
-	    core_temp_f.innerHTML = meta.core_temp + "°C";
+	    height_f.innerHTML = round_1(meta.height) + " m";
+	    length_f.innerHTML = round_1(meta.length) + " m";
+	    weight_f.innerHTML = round_1(meta.weight) + " kg";
+	    core_temp_f.innerHTML = round_1(meta.core_temp) + "°C";
 	}
 
 	else {
@@ -65,6 +65,10 @@ const runWasm = async () => {
 	    weight_f.innerHTML = kg_to_lb(meta.weight) + " lb";
 	    core_temp_f.innerHTML = c_to_f(meta.core_temp) + "°F";
 	}
+    }
+
+    function round_1(n) {
+	return (Math.round(n * 10) / 10);
     }
     
     function assign_metadata(meta) {
@@ -75,7 +79,7 @@ const runWasm = async () => {
 	stability_f.innerHTML = meta.stability + "%";
 	prevalence_f.innerHTML = meta.prevalence + "%";
 	constancy_f.innerHTML = meta.constancy + "%";
-	longevity_f.innerHTML = meta.longevity + " years";
+	longevity_f.innerHTML = round_1(meta.longevity) + " years";
 	no_appearing_f.innerHTML = meta.no_appearing;
 	vision_f.innerHTML = meta.vision;
 	language_family_f.innerHTML = meta.language_family;
@@ -110,8 +114,8 @@ const runWasm = async () => {
 
     switcher.addEventListener('click', function() {
 	metric = !metric;
-	if (metric) { switcher.innerHTML = "metric"; }
-	else { switcher.innerHTML = "imperial"; }
+	if (metric) { switcher.innerHTML = "imperial"; }
+	else { switcher.innerHTML = "metric"; }
 	assign_metadata(m);
     }, false);
 }    

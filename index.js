@@ -22,6 +22,8 @@ const runWasm = async () => {
     var no_appearing_f = document.getElementById("no_appearing_f");
     var vision_f = document.getElementById("vision_f");
     var language_family_f = document.getElementById("language_family_f");
+
+    var switcher = document.getElementById("switcher");
     
     var height = rustWasm.height();
     canvas.height = height;
@@ -32,6 +34,8 @@ const runWasm = async () => {
     ctx.imageSmoothingEnabled = false;
 
     var metric = true;
+
+    var m;
     
     var pixelsPtr; var pixelArray;
 
@@ -75,7 +79,6 @@ const runWasm = async () => {
 	no_appearing_f.innerHTML = meta.no_appearing;
 	vision_f.innerHTML = meta.vision;
 	language_family_f.innerHTML = meta.language_family;
-
 	assign_measurements(meta);
     }
     
@@ -91,7 +94,8 @@ const runWasm = async () => {
 					       pixelsPtr, 4 * width * height);
 	    ctx.putImageData(new ImageData(pixelArray, width, height), 0, 0);
 	}
-	assign_metadata(new Metadata());
+	m = new Metadata();
+	assign_metadata(m);
     }
 
     generate();
@@ -102,6 +106,13 @@ const runWasm = async () => {
 
     nav_r.addEventListener('click', function() {
 	generate();
+    }, false);
+
+    switcher.addEventListener('click', function() {
+	metric = !metric;
+	if (metric) { switcher.innerHTML = "metric"; }
+	else { switcher.innerHTML = "imperial"; }
+	assign_metadata(m);
     }, false);
 }    
 
